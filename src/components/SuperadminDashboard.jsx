@@ -87,9 +87,13 @@ export default function SuperadminDashboard({ user, onLogout }) {
   const [stickersToPrint, setStickersToPrint] = useState([]); // Array of { sku, name, sn }
   const [selectedCatalogSns, setSelectedCatalogSns] = useState({}); // key: productId, value: Array of S/Ns
   const [printSettings, setPrintSettings] = useState({
+    paperWidth: 40,
+    paperHeight: 20,
     width: 40,
     height: 20,
     columns: 1,
+    rows: 1,
+    margin: 0,
     fontSize: 8,
     showBarcode: true,
     showProductInfo: true
@@ -628,6 +632,27 @@ export default function SuperadminDashboard({ user, onLogout }) {
     inputSerialNumbers
   ]);
 
+  // Auto-detect brand from selected product info for existing items
+  useEffect(() => {
+    if (inputSubTab === 'existing' && selectedProductId && products.length > 0) {
+      const selectedProd = products.find(p => p.id === selectedProductId);
+      if (selectedProd) {
+        const targetString = `${selectedProd.sku} ${selectedProd.name}`.toUpperCase();
+        if (targetString.includes('ASUS')) {
+          setGenerateBrand('ASUS');
+        } else if (targetString.includes('ACER')) {
+          setGenerateBrand('ACER');
+        } else if (targetString.includes('HP')) {
+          setGenerateBrand('HP');
+        } else if (targetString.includes('DELL')) {
+          setGenerateBrand('DELL');
+        } else if (targetString.includes('LENOVO')) {
+          setGenerateBrand('LENOVO');
+        }
+      }
+    }
+  }, [selectedProductId, inputSubTab, products]);
+
   const handleGenerateSNs = () => {
     if (generateQty <= 0) {
       alert('Jumlah barang harus lebih besar dari 0!');
@@ -686,8 +711,10 @@ export default function SuperadminDashboard({ user, onLogout }) {
 
     // 4. Generate sequential S/Ns
     const newSns = [];
-    for (let i = 0; i < generateQty; i++) {
-      const currentNum = generateStartNum + i;
+    const startNum = parseInt(generateStartNum, 10) || 1;
+    const qty = parseInt(generateQty, 10) || 0;
+    for (let i = 0; i < qty; i++) {
+      const currentNum = startNum + i;
       const seqStr = String(currentNum).padStart(3, '0');
       let sn = '';
       if (isLcdOrLed) {
@@ -884,8 +911,12 @@ export default function SuperadminDashboard({ user, onLogout }) {
     style.innerHTML = `
       @media print {
         @page {
-          size: ${printSettings.width}mm ${printSettings.height}mm;
+          size: ${printSettings.paperWidth}mm ${printSettings.paperHeight}mm;
           margin: 0;
+        }
+        body {
+          margin: 0;
+          padding: 0;
         }
       }
     `;
@@ -2174,7 +2205,7 @@ export default function SuperadminDashboard({ user, onLogout }) {
               </div>
 
               {/* Product Modal Form */}
-              {productModalOpen && (
+              {productModalOpen && createPortal(
                 <div className="modal-overlay">
                   <div className="modal-content">
                     <div className="modal-header">
@@ -2202,10 +2233,9 @@ export default function SuperadminDashboard({ user, onLogout }) {
                               type="text"
                               required
                               className="form-input"
-                              placeholder="Contoh: KBD-LEN-T490"
+                              placeholder="Contoh: MST-102"
                               value={productForm.sku}
                               onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })}
-                              disabled={!!editingProduct} // MASTER should not change on edit usually
                             />
                           </div>
                           
@@ -2215,7 +2245,7 @@ export default function SuperadminDashboard({ user, onLogout }) {
                               type="text"
                               required
                               className="form-input"
-                              placeholder="Contoh: Kelistrikan / Suku Cadang Mesin"
+                              placeholder="Contoh: Baterai"
                               value={productForm.category}
                               onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                             />
@@ -2224,13 +2254,12 @@ export default function SuperadminDashboard({ user, onLogout }) {
 
                         <div className="form-grid-two-columns">
                           <div className="form-group">
-                            <label className="form-label">Harga Satuan (IDR)</label>
+                            <label className="form-label">Harga Satuan (Rp)</label>
                             <input
                               type="number"
                               required
-                              min="0"
                               className="form-input"
-                              placeholder="Contoh: 125000"
+                              placeholder="Contoh: 150000"
                               value={productForm.price}
                               onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
                             />
@@ -2241,9 +2270,10 @@ export default function SuperadminDashboard({ user, onLogout }) {
                             <input
                               type="number"
                               required
-                              min="0"
+                              disabled={!!editingProduct}
                               className="form-input"
-                              placeholder="Contoh: 50"
+                              style={editingProduct ? { backgroundColor: 'var(--border-color)', cursor: 'not-allowed' } : {}}
+                              placeholder="Contoh: 10"
                               value={productForm.stock}
                               onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
                             />
@@ -2268,7 +2298,8 @@ export default function SuperadminDashboard({ user, onLogout }) {
                       </div>
                     </form>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           )}
@@ -2452,7 +2483,10 @@ export default function SuperadminDashboard({ user, onLogout }) {
                           className="form-input"
                           style={{ height: '36px', fontSize: '12px' }}
                           value={generateQty}
-                          onChange={(e) => setGenerateQty(parseInt(e.target.value, 10) || 0)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setGenerateQty(val === '' ? '' : (parseInt(val, 10) || 0));
+                          }}
                         />
                       </div>
 
@@ -2471,9 +2505,16 @@ export default function SuperadminDashboard({ user, onLogout }) {
                             <label className="form-label" style={{ fontSize: '11px' }}>Merk Barang</label>
                             <select
                               className="form-input"
-                              style={{ height: '36px', fontSize: '12px', padding: '0 8px' }}
+                              style={{ 
+                                height: '36px', 
+                                fontSize: '12px', 
+                                padding: '0 8px',
+                                backgroundColor: (inputSubTab === 'existing' && ['ASUS', 'ACER', 'HP', 'DELL', 'LENOVO'].includes(generateBrand)) ? 'var(--border-color)' : 'transparent',
+                                cursor: (inputSubTab === 'existing' && ['ASUS', 'ACER', 'HP', 'DELL', 'LENOVO'].includes(generateBrand)) ? 'not-allowed' : 'default'
+                              }}
                               value={generateBrand}
                               onChange={(e) => setGenerateBrand(e.target.value)}
+                              disabled={inputSubTab === 'existing' && ['ASUS', 'ACER', 'HP', 'DELL', 'LENOVO'].includes(generateBrand)}
                             >
                               <option value="ASUS">ASUS (AS)</option>
                               <option value="ACER">ACER (AC)</option>
@@ -2523,7 +2564,10 @@ export default function SuperadminDashboard({ user, onLogout }) {
                           className="form-input"
                           style={{ height: '36px', fontSize: '12px' }}
                           value={generateStartNum}
-                          onChange={(e) => setGenerateStartNum(parseInt(e.target.value, 10) || 1)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setGenerateStartNum(val === '' ? '' : (parseInt(val, 10) || 0));
+                          }}
                         />
                       </div>
                     </div>
@@ -2965,8 +3009,40 @@ export default function SuperadminDashboard({ user, onLogout }) {
                   <h3 className="section-title">Pengaturan Cetak Stiker</h3>
                   <button onClick={() => setStickerModalOpen(false)} className="close-btn">✕</button>
                 </div>
-                
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flexGrow: 1, overflowY: 'auto', maxHeight: '420px', paddingRight: '8px' }}>
+                  {/* Row 1: Paper Dimensions */}
+                  <div className="form-grid-two-columns">
+                    <div className="form-group">
+                      <label className="form-label">Lebar Kertas (mm)</label>
+                      <input 
+                        type="number"
+                        min="10"
+                        max="300"
+                        className="form-input"
+                        value={printSettings.paperWidth}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPrintSettings({ ...printSettings, paperWidth: val === '' ? '' : (parseInt(val) || 0) });
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Tinggi Kertas (mm)</label>
+                      <input 
+                        type="number"
+                        min="5"
+                        max="500"
+                        className="form-input"
+                        value={printSettings.paperHeight}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPrintSettings({ ...printSettings, paperHeight: val === '' ? '' : (parseInt(val) || 0) });
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 2: Label Dimensions */}
                   <div className="form-grid-two-columns">
                     <div className="form-group">
                       <label className="form-label">Lebar Label (mm)</label>
@@ -2976,7 +3052,16 @@ export default function SuperadminDashboard({ user, onLogout }) {
                         max="150"
                         className="form-input"
                         value={printSettings.width}
-                        onChange={(e) => setPrintSettings({ ...printSettings, width: parseInt(e.target.value) || 40 })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const w = val === '' ? '' : (parseInt(val) || 0);
+                          const wCalc = w || 0;
+                          setPrintSettings(prev => ({ 
+                            ...prev, 
+                            width: w, 
+                            paperWidth: (prev.columns || 1) * wCalc + (prev.margin || 0) * 2 
+                          }));
+                        }}
                       />
                     </div>
                     <div className="form-group">
@@ -2987,23 +3072,86 @@ export default function SuperadminDashboard({ user, onLogout }) {
                         max="100"
                         className="form-input"
                         value={printSettings.height}
-                        onChange={(e) => setPrintSettings({ ...printSettings, height: parseInt(e.target.value) || 20 })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const h = val === '' ? '' : (parseInt(val) || 0);
+                          const hCalc = h || 0;
+                          setPrintSettings(prev => ({ 
+                            ...prev, 
+                            height: h, 
+                            paperHeight: (prev.rows || 1) * hCalc + (prev.margin || 0) * 2 
+                          }));
+                        }}
                       />
                     </div>
                   </div>
 
+                  {/* Row 3: Grid (Columns & Rows) */}
                   <div className="form-grid-two-columns">
                     <div className="form-group">
-                      <label className="form-label">Kolom Stiker</label>
-                      <select 
+                      <label className="form-label">Jumlah Kolom</label>
+                      <input 
+                        type="number"
+                        min="1"
+                        max="10"
                         className="form-input"
                         value={printSettings.columns}
-                        onChange={(e) => setPrintSettings({ ...printSettings, columns: parseInt(e.target.value) || 1 })}
-                      >
-                        <option value="1">1 Kolom (Standar Roll)</option>
-                        <option value="2">2 Kolom</option>
-                        <option value="3">3 Kolom</option>
-                      </select>
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const c = val === '' ? '' : (parseInt(val) || 0);
+                          const cCalc = c || 0;
+                          setPrintSettings(prev => ({ 
+                            ...prev, 
+                            columns: c, 
+                            paperWidth: cCalc * (prev.width || 0) + (prev.margin || 0) * 2 
+                          }));
+                        }}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Jumlah Baris</label>
+                      <input 
+                        type="number"
+                        min="1"
+                        max="30"
+                        className="form-input"
+                        value={printSettings.rows}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const r = val === '' ? '' : (parseInt(val) || 0);
+                          const rCalc = r || 0;
+                          setPrintSettings(prev => ({ 
+                            ...prev, 
+                            rows: r, 
+                            paperHeight: rCalc * (prev.height || 0) + (prev.margin || 0) * 2 
+                          }));
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 4: Margin & Font Size */}
+                  <div className="form-grid-two-columns">
+                    <div className="form-group">
+                      <label className="form-label">Margin Kertas (mm)</label>
+                      <input 
+                        type="number"
+                        min="0"
+                        max="50"
+                        className="form-input"
+                        value={printSettings.margin}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const m = val === '' ? '' : (parseInt(val) || 0);
+                          const mCalc = m || 0;
+                          setPrintSettings(prev => ({ 
+                            ...prev, 
+                            margin: m, 
+                            paperWidth: (prev.columns || 1) * (prev.width || 0) + mCalc * 2,
+                            paperHeight: (prev.rows || 1) * (prev.height || 0) + mCalc * 2
+                          }));
+                        }}
+                      />
                     </div>
                     <div className="form-group">
                       <label className="form-label">Ukuran Font (pt / Skala)</label>
@@ -3013,11 +3161,11 @@ export default function SuperadminDashboard({ user, onLogout }) {
                         max="24"
                         className="form-input"
                         value={printSettings.fontSize}
-                        onChange={(e) => setPrintSettings({ ...printSettings, fontSize: parseInt(e.target.value) || 8 })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPrintSettings({ ...printSettings, fontSize: val === '' ? '' : (parseInt(val) || 0) });
+                        }}
                       />
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
-                        * Gunakan ukuran 2-4 untuk stiker kecil (misal 30x20mm) agar muat.
-                      </span>
                     </div>
                   </div>
 
@@ -3054,25 +3202,30 @@ export default function SuperadminDashboard({ user, onLogout }) {
                   </button>
                 </div>
               </div>
-
               {/* Right Column: Live Interactive Preview */}
               <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '20px', display: 'flex', flexDirection: 'column', height: '100%', alignItems: 'flex-start' }}>
                 <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-muted)', marginBottom: '12px', textAlign: 'left' }}>
-                  Pratinjau Kertas Label ({printSettings.columns} Kolom)
+                  Pratinjau Kertas ({printSettings.columns}x{printSettings.rows} Grid)
                 </h4>
                 
-                <div style={{ width: '100%', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1e1b18', borderRadius: '8px', padding: '20px', minHeight: '260px' }}>
+                <div style={{ width: '100%', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1e1b18', borderRadius: '8px', padding: '20px', minHeight: '280px', overflow: 'auto' }}>
                   <div 
                     style={{ 
-                      width: `${printSettings.columns * printSettings.width * 4}px`, 
-                      height: `${printSettings.height * 4}px`, 
+                      width: `${printSettings.paperWidth * 2.2}px`, 
+                      height: `${printSettings.paperHeight * 2.2}px`, 
+                      maxWidth: '100%',
+                      maxHeight: '260px',
+                      padding: `${printSettings.margin * 2.2}px`,
                       backgroundColor: 'white', 
                       color: 'black', 
                       boxShadow: '0 4px 12px rgba(0,0,0,0.5)', 
                       borderRadius: '4px', 
-                      display: 'flex', 
-                      flexDirection: 'row', 
-                      padding: 0,
+                      display: 'grid', 
+                      gridTemplateColumns: `repeat(${printSettings.columns}, ${printSettings.width * 2.2}px)`,
+                      gridTemplateRows: `repeat(${printSettings.rows}, ${printSettings.height * 2.2}px)`,
+                      justifyContent: 'center',
+                      alignContent: 'center',
+                      gap: '2px',
                       boxSizing: 'border-box',
                       overflow: 'hidden',
                       position: 'relative',
@@ -3080,8 +3233,9 @@ export default function SuperadminDashboard({ user, onLogout }) {
                     }}
                   >
                     {(() => {
-                      const previewItems = [...stickersToPrint.slice(0, printSettings.columns)];
-                      while (previewItems.length < printSettings.columns) {
+                      const pageSize = printSettings.columns * printSettings.rows;
+                      const previewItems = [...stickersToPrint.slice(0, pageSize)];
+                      while (previewItems.length < pageSize) {
                         previewItems.push({ 
                           sku: stickersToPrint[0]?.sku || 'SKU-XXXX', 
                           name: stickersToPrint[0]?.name || 'Nama Produk', 
@@ -3092,30 +3246,30 @@ export default function SuperadminDashboard({ user, onLogout }) {
                         <div 
                           key={idx}
                           style={{
-                            width: `${printSettings.width * 4}px`,
-                            height: '100%',
+                            width: `${printSettings.width * 2.2}px`,
+                            height: `${printSettings.height * 2.2}px`,
                             boxSizing: 'border-box',
-                            padding: '8px',
+                            padding: '4px',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
                             overflow: 'hidden',
-                            borderRight: idx < printSettings.columns - 1 ? '1px dashed #ccc' : 'none'
+                            border: '1px dashed #ccc'
                           }}
                         >
                           {printSettings.showProductInfo && (
                             <>
-                              <div style={{ fontSize: `${printSettings.fontSize * 0.9 * 4}px`, fontWeight: '800', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1, textAlign: 'center' }}>
+                              <div style={{ fontSize: `${printSettings.fontSize * 0.9 * 2.2}px`, fontWeight: '800', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.1, textAlign: 'center' }}>
                                 {item.name}
                               </div>
-                              <div style={{ fontSize: `${printSettings.fontSize * 0.8 * 4}px`, fontFamily: 'monospace', fontWeight: '600', color: '#555', lineHeight: 1, width: '100%', textAlign: 'center' }}>
+                              <div style={{ fontSize: `${printSettings.fontSize * 0.8 * 2.2}px`, fontFamily: 'monospace', fontWeight: '600', color: '#555', lineHeight: 1, width: '100%', textAlign: 'center' }}>
                                 SKU: {item.sku}
                               </div>
                             </>
                           )}
                           {printSettings.showBarcode && (
-                            <div style={{ width: '100%', height: '35%', margin: '4px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: '100%', height: '35%', margin: '2px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <img 
                                 src={generateCode39SVG(item.sn)} 
                                 alt="barcode preview" 
@@ -3123,7 +3277,7 @@ export default function SuperadminDashboard({ user, onLogout }) {
                               />
                             </div>
                           )}
-                          <div style={{ fontSize: `${printSettings.fontSize * 4}px`, fontFamily: 'monospace', fontWeight: '800', borderTop: '1px dashed #ddd', width: '100%', paddingTop: '2px', marginTop: '2px', letterSpacing: '0.5px', textAlign: 'center' }}>
+                          <div style={{ fontSize: `${printSettings.fontSize * 2.2}px`, fontFamily: 'monospace', fontWeight: '800', borderTop: '1px dashed #ddd', width: '100%', paddingTop: '1px', marginTop: '1px', letterSpacing: '0.5px', textAlign: 'center' }}>
                             {item.sn}
                           </div>
                         </div>
@@ -3132,7 +3286,7 @@ export default function SuperadminDashboard({ user, onLogout }) {
                   </div>
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'left' }}>
-                  * Menampilkan baris pertama kertas stiker ({printSettings.columns} kolom). Total stiker yang akan dicetak: {stickersToPrint.length} stiker.
+                  * Menampilkan pratinjau halaman pertama ({printSettings.columns}x{printSettings.rows} stiker). Total stiker yang akan dicetak: {stickersToPrint.length} stiker.
                 </div>
               </div>
             </div>
@@ -3144,24 +3298,28 @@ export default function SuperadminDashboard({ user, onLogout }) {
           <div id="print-sticker-container">
             {(() => {
               const chunks = [];
-              const size = printSettings.columns;
-              for (let i = 0; i < stickersToPrint.length; i += size) {
-                chunks.push(stickersToPrint.slice(i, i + size));
+              const pageSize = printSettings.columns * printSettings.rows;
+              for (let i = 0; i < stickersToPrint.length; i += pageSize) {
+                chunks.push(stickersToPrint.slice(i, i + pageSize));
               }
               return chunks.map((pageItems, pageIdx) => (
                 <div 
                   key={pageIdx} 
                   className="print-sticker-page"
                   style={{ 
-                    width: `${printSettings.columns * printSettings.width}mm`,
-                    height: `${printSettings.height}mm`,
+                    width: `${printSettings.paperWidth}mm`,
+                    height: `${printSettings.paperHeight}mm`,
+                    padding: `${printSettings.margin}mm`,
                     display: 'flex',
                     flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-start',
+                    alignContent: 'flex-start',
                     margin: 0,
-                    padding: 0,
                     pageBreakAfter: 'always',
                     boxSizing: 'border-box',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    backgroundColor: '#fff'
                   }}
                 >
                   {pageItems.map((sticker, idx) => (
@@ -3173,7 +3331,12 @@ export default function SuperadminDashboard({ user, onLogout }) {
                         height: `${printSettings.height}mm`,
                         padding: '1mm',
                         margin: 0,
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}
                     >
                       <div style={{ 
