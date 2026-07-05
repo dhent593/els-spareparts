@@ -71,7 +71,7 @@ export default function Login({ onLoginSuccess }) {
               type="text"
               id="username"
               className="form-input"
-              placeholder="Username (contoh: els.purwokerto / admin)"
+              placeholder="Masukkan username Anda"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
@@ -107,21 +107,6 @@ export default function Login({ onLoginSuccess }) {
 
         <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
           <p>Lupa password? Hubungi Superadmin ELS Pusat</p>
-          <div 
-            style={{ 
-              marginTop: '12px', 
-              padding: '10px', 
-              borderRadius: '6px', 
-              backgroundColor: 'var(--primary-light)', 
-              fontSize: '11px',
-              color: 'var(--text-main)',
-              lineHeight: '1.4'
-            }}
-          >
-            <strong>Default Akun Demo:</strong><br />
-            Superadmin: <code>admin</code> | Cabang: <code>els.purwokerto</code><br />
-            Semua Password: <code>palamana</code>
-          </div>
         </div>
       </div>
     </div>
