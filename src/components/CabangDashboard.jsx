@@ -85,25 +85,11 @@ export default function CabangDashboard({ user, onLogout }) {
 
   // --- CART OPERATIONS ---
   const handleAddToCart = (product) => {
-    if (product.stock <= 0) {
-      window.dispatchEvent(new CustomEvent('show-toast', {
-        detail: { message: `Stok "${product.name}" kosong!`, type: 'error' }
-      }));
-      return;
-    }
-
     const existingIndex = cart.findIndex((item) => item.productId === product.id);
     const updatedCart = [...cart];
 
     if (existingIndex > -1) {
-      const newQty = updatedCart[existingIndex].qty + 1;
-      if (newQty > product.stock) {
-        window.dispatchEvent(new CustomEvent('show-toast', {
-          detail: { message: `Batas stok tercapai. Maksimum tersedia: ${product.stock} pcs`, type: 'error' }
-        }));
-        return;
-      }
-      updatedCart[existingIndex].qty = newQty;
+      updatedCart[existingIndex].qty += 1;
     } else {
       updatedCart.push({
         productId: product.id,
@@ -127,12 +113,6 @@ export default function CabangDashboard({ user, onLogout }) {
       if (item.productId === productId) {
         const newQty = item.qty + change;
         if (newQty <= 0) return null;
-        if (newQty > item.maxStock) {
-          window.dispatchEvent(new CustomEvent('show-toast', {
-            detail: { message: `Batas stok tercapai. Maksimum tersedia: ${item.maxStock} pcs`, type: 'error' }
-          }));
-          return item;
-        }
         return { ...item, qty: newQty };
       }
       return item;
@@ -449,7 +429,6 @@ export default function CabangDashboard({ user, onLogout }) {
                           const isOutOfStock = p.stock <= 0;
                           const itemInCart = cart.find(item => item.productId === p.id);
                           const cartQty = itemInCart ? itemInCart.qty : 0;
-                          const availableStock = p.stock - cartQty;
 
                           return (
                             <tr key={p.id}>
@@ -513,7 +492,6 @@ export default function CabangDashboard({ user, onLogout }) {
                                         type="button" 
                                         className="quantity-btn"
                                         onClick={() => handleUpdateCartQty(p.id, 1)}
-                                        disabled={availableStock <= 0}
                                         style={{ width: '26px', height: '26px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 'auto', padding: 0 }}
                                       >
                                         +
@@ -523,7 +501,6 @@ export default function CabangDashboard({ user, onLogout }) {
                                     <button 
                                       onClick={() => handleAddToCart(p)}
                                       className="btn btn-primary btn-sm"
-                                      disabled={isOutOfStock}
                                       style={{ 
                                         padding: '8px 14px',
                                         fontSize: '12px',
@@ -868,7 +845,8 @@ export default function CabangDashboard({ user, onLogout }) {
                 )}
 
                 {/* Custom Item Request Section inside Cart */}
-                {cart.length > 0 && (
+                {(() => {
+                  return (
                   <div style={{ padding: '16px', margin: '16px', border: '1px dashed var(--primary)', borderRadius: '8px', backgroundColor: 'var(--bg-app)' }}>
                     <h4 style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -912,7 +890,8 @@ export default function CabangDashboard({ user, onLogout }) {
                       </button>
                     </div>
                   </div>
-                )}
+                );
+              })()}
               </div>
 
               {/* Checkout Form & totals */}
