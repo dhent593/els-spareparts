@@ -559,10 +559,6 @@ export const db = {
         
       if (prodErr) throw new Error(prodErr.message);
       
-      if (diff > 0 && prod.stock < diff) {
-        throw new Error(`Stok "${prod.name}" tidak mencukupi! Tersedia di katalog: ${prod.stock}`);
-      }
-
       const { error: stockErr } = await supabase
         .from('products')
         .update({ stock: prod.stock - diff })

@@ -1423,3 +1423,18 @@ body {
   transform-origin: left;
   transition: opacity 0.3s ease;
 }
+
+/* Tactile buttons with gel-like elastic click feedback */
+.btn-tactile {
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+.btn-tactile:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.04) !important;
+  filter: brightness(1.15) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  border-color: currentColor !important;
+}
+.btn-tactile:active:not(:disabled) {
+  transform: translateY(1px) scale(0.92) !important;
+  transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.5) !important;
+}

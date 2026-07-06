@@ -80,6 +80,7 @@ export default function SuperadminDashboard({ user, onLogout }) {
   const [serialInputLists, setSerialInputLists] = useState({}); // key: 'orderId-productId', value: Array of S/Ns
   const [snInputs, setSnInputs] = useState({}); // key: 'orderId-productId', value: typed-text
   const [isLoading, setIsLoading] = useState(false);
+  const [itemActionLoading, setItemActionLoading] = useState({});
   const [expandedProductId, setExpandedProductId] = useState(null);
 
   // Sticker printing states
@@ -206,13 +207,25 @@ export default function SuperadminDashboard({ user, onLogout }) {
   };
 
   const handleUpdatePendingItemQty = async (orderId, productId, newQty) => {
+    const key = `${orderId}-${productId}`;
+    setItemActionLoading(prev => ({ ...prev, [key]: true }));
+    setIsLoading(true);
     try {
       await db.updatePendingOrderItemQty(orderId, productId, newQty);
       await reloadData();
+      window.dispatchEvent(new CustomEvent('show-toast', {
+        detail: { 
+          message: newQty === 0 ? 'Item pesanan berhasil ditandai kosong' : 'Kuantitas pesanan berhasil diperbarui', 
+          type: 'success' 
+        }
+      }));
     } catch (err) {
       window.dispatchEvent(new CustomEvent('show-toast', {
         detail: { message: err.message, type: 'error' }
       }));
+    } finally {
+      setItemActionLoading(prev => ({ ...prev, [key]: false }));
+      setIsLoading(false);
     }
   };
 
@@ -293,8 +306,8 @@ export default function SuperadminDashboard({ user, onLogout }) {
           const sku = (row['MASTER'] || row['sku'] || '').toString().trim();
           const name = (row['NAMA SUKU CADANG'] || row['NAMA'] || row['name'] || '').toString().trim();
           const category = (row['KATEGORI'] || row['category'] || 'Kelistrikan').toString().trim();
-          const price = Number(row['HARGA'] || row['price']) || 0;
-          const stock = Number(row['STOK'] || row['stock']) || 0;
+          const price = Number(row['HARGA SATUAN'] || row['HARGA'] || row['price'] || row['Harga Satuan'] || 0);
+          const stock = Number(row['STOK TERSEDIA'] || row['STOK'] || row['stock'] || row['Stok Tersedia'] || 0);
           const description = (row['DESKRIPSI'] || row['description'] || '').toString().trim();
 
           return { sku, name, category, price, stock, description };
@@ -1601,15 +1614,15 @@ export default function SuperadminDashboard({ user, onLogout }) {
                                                           border: 'none', 
                                                           background: 'none', 
                                                           color: 'var(--text-main)', 
-                                                          cursor: item.qty <= 0 ? 'not-allowed' : 'pointer', 
+                                                          cursor: (item.qty <= 0 || itemActionLoading[`${order.id}-${item.productId}`]) ? 'not-allowed' : 'pointer', 
                                                           display: 'flex', 
                                                           alignItems: 'center', 
                                                           justifyContent: 'center', 
-                                                          opacity: item.qty <= 0 ? 0.3 : 1,
+                                                          opacity: (item.qty <= 0 || itemActionLoading[`${order.id}-${item.productId}`]) ? 0.3 : 1,
                                                           fontSize: '14px',
                                                           borderRight: '1px solid var(--border-color)'
                                                         }}
-                                                        disabled={item.qty <= 0}
+                                                        disabled={item.qty <= 0 || itemActionLoading[`${order.id}-${item.productId}`]}
                                                         onClick={() => handleUpdatePendingItemQty(order.id, item.productId, item.qty - 1)}
                                                       >
                                                         -
@@ -1625,15 +1638,15 @@ export default function SuperadminDashboard({ user, onLogout }) {
                                                           border: 'none', 
                                                           background: 'none', 
                                                           color: 'var(--text-main)', 
-                                                          cursor: item.qty >= originalQty ? 'not-allowed' : 'pointer', 
+                                                          cursor: (item.qty >= originalQty || itemActionLoading[`${order.id}-${item.productId}`]) ? 'not-allowed' : 'pointer', 
                                                           display: 'flex', 
                                                           alignItems: 'center', 
                                                           justifyContent: 'center', 
-                                                          opacity: item.qty >= originalQty ? 0.3 : 1,
+                                                          opacity: (item.qty >= originalQty || itemActionLoading[`${order.id}-${item.productId}`]) ? 0.3 : 1,
                                                           fontSize: '14px',
                                                           borderLeft: '1px solid var(--border-color)'
                                                         }}
-                                                        disabled={item.qty >= originalQty}
+                                                        disabled={item.qty >= originalQty || itemActionLoading[`${order.id}-${item.productId}`]}
                                                         onClick={() => handleUpdatePendingItemQty(order.id, item.productId, item.qty + 1)}
                                                       >
                                                         +
@@ -1643,42 +1656,98 @@ export default function SuperadminDashboard({ user, onLogout }) {
                                                     {isItemCancelled ? (
                                                       <button
                                                         type="button"
-                                                        className="btn btn-secondary btn-sm"
+                                                        className="btn btn-secondary btn-sm btn-tactile"
                                                         style={{ 
                                                           padding: '0 10px', 
                                                           fontSize: '11px', 
                                                           height: '26px', 
-                                                          display: 'flex', 
+                                                          display: 'inline-flex', 
                                                           alignItems: 'center', 
                                                           gap: '4px',
                                                           color: 'var(--primary)',
                                                           borderColor: 'var(--primary)',
-                                                          background: 'none'
+                                                          background: 'none',
+                                                          opacity: itemActionLoading[`${order.id}-${item.productId}`] ? 0.6 : 1,
+                                                          cursor: itemActionLoading[`${order.id}-${item.productId}`] ? 'not-allowed' : 'pointer'
                                                         }}
+                                                        disabled={itemActionLoading[`${order.id}-${item.productId}`]}
                                                         onClick={() => handleUpdatePendingItemQty(order.id, item.productId, originalQty)}
                                                       >
-                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-                                                        Puluhkan
+                                                        {itemActionLoading[`${order.id}-${item.productId}`] ? (
+                                                          <>
+                                                            <svg width="10" height="10" viewBox="0 0 38 38" stroke="currentColor">
+                                                              <g fill="none" fillRule="evenodd">
+                                                                <g transform="translate(1 1)" strokeWidth="3">
+                                                                  <circle strokeOpacity=".2" cx="18" cy="18" r="18"/>
+                                                                  <path d="M36 18c0-9.94-8.06-18-18-18">
+                                                                    <animateTransform
+                                                                      attributeName="transform"
+                                                                      type="rotate"
+                                                                      from="0 18 18"
+                                                                      to="360 18 18"
+                                                                      dur="0.8s"
+                                                                      repeatCount="indefinite"
+                                                                    />
+                                                                  </path>
+                                                                </g>
+                                                              </g>
+                                                            </svg>
+                                                            Memproses...
+                                                          </>
+                                                        ) : (
+                                                          <>
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                                                            Puluhkan
+                                                          </>
+                                                        )}
                                                       </button>
                                                     ) : (
                                                       <button
                                                         type="button"
-                                                        className="btn btn-secondary btn-sm"
+                                                        className="btn btn-secondary btn-sm btn-tactile"
                                                         style={{ 
                                                           padding: '0 10px', 
                                                           fontSize: '11px', 
                                                           height: '26px', 
-                                                          display: 'flex', 
+                                                          display: 'inline-flex', 
                                                           alignItems: 'center', 
                                                           gap: '4px',
                                                           color: 'var(--status-cancelled)',
                                                           borderColor: 'rgba(220,38,38,0.2)',
-                                                          background: 'none'
+                                                          background: 'none',
+                                                          opacity: itemActionLoading[`${order.id}-${item.productId}`] ? 0.6 : 1,
+                                                          cursor: itemActionLoading[`${order.id}-${item.productId}`] ? 'not-allowed' : 'pointer'
                                                         }}
+                                                        disabled={itemActionLoading[`${order.id}-${item.productId}`]}
                                                         onClick={() => handleUpdatePendingItemQty(order.id, item.productId, 0)}
                                                       >
-                                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                        Tandai Kosong
+                                                        {itemActionLoading[`${order.id}-${item.productId}`] ? (
+                                                          <>
+                                                            <svg width="10" height="10" viewBox="0 0 38 38" stroke="currentColor">
+                                                              <g fill="none" fillRule="evenodd">
+                                                                <g transform="translate(1 1)" strokeWidth="3">
+                                                                  <circle strokeOpacity=".2" cx="18" cy="18" r="18"/>
+                                                                  <path d="M36 18c0-9.94-8.06-18-18-18">
+                                                                    <animateTransform
+                                                                      attributeName="transform"
+                                                                      type="rotate"
+                                                                      from="0 18 18"
+                                                                      to="360 18 18"
+                                                                      dur="0.8s"
+                                                                      repeatCount="indefinite"
+                                                                    />
+                                                                  </path>
+                                                                </g>
+                                                              </g>
+                                                            </svg>
+                                                            Memproses...
+                                                          </>
+                                                        ) : (
+                                                          <>
+                                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                                            Tandai Kosong
+                                                          </>
+                                                        )}
                                                       </button>
                                                     )}
                                                   </div>
