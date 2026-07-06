@@ -736,32 +736,7 @@ export const db = {
     await supabase.from('users').delete().neq('username', 'none');
 
     await supabase.from('users').insert([
-      { username: 'admin', password: 'palamana', role: 'superadmin', display_name: 'ELS Pusat (Admin)', location: 'Yogyakarta (Pusat)' },
-      { username: 'els.purwokerto', password: 'palamana', role: 'cabang', display_name: 'ELS Purwokerto', location: 'Purwokerto' },
-      { username: 'els.bandung', password: 'palamana', role: 'cabang', display_name: 'ELS Bandung', location: 'Bandung' }
-    ]);
-
-    await supabase.from('products').insert([
-      { id: 'prod-1', name: 'LCD Screen LED 14.0 Slim 30 Pin', sku: 'LCD-140-S30P', category: 'Layar & LCD', price: 550000, stock: 40, description: 'Layar LED laptop 14.0 inch slim connector 30 pin, garansi 1 bulan.' },
-      { id: 'prod-2', name: 'Baterai Laptop Asus Vivobook C21N1818', sku: 'BAT-ASU-C21N', category: 'Baterai', price: 320000, stock: 25, description: 'Baterai internal notebook Asus Vivobook Series 7.7V 37Wh.' },
-      { id: 'prod-3', name: 'Keyboard Laptop Lenovo Thinkpad T490', sku: 'KBD-LEN-T490', category: 'Keyboard', price: 280000, stock: 15, description: 'Keyboard laptop Lenovo Thinkpad T490/T495 US Layout non-backlight.' },
-      { id: 'prod-4', name: 'Charger Adaptor Laptop Acer 19V 3.42A', sku: 'ADP-ACE-19V3', category: 'Adaptor', price: 150000, stock: 50, description: 'Charger laptop Acer 65W connector 5.5mm x 1.7mm original.' },
-      { id: 'prod-5', name: 'RAM DDR4 Kingston Fury 8GB 3200MHz Sodimm', sku: 'RAM-D4K-8G32', category: 'RAM', price: 295000, stock: 60, description: 'Memori RAM DDR4 Sodimm kapasitas 8GB speed 3200MHz untuk laptop.' },
-      { id: 'prod-6', name: 'SSD NVMe M.2 Samsung 980 500GB', sku: 'SSD-SAM-980N', category: 'Penyimpanan (Storage)', price: 750000, stock: 30, description: 'SSD NVMe PCIe Gen 3.0 x4 M.2 Samsung 980 Read speed 3100MB/s.' },
-      { id: 'prod-7', name: 'Kipas Fan Laptop HP Pavilion 14-BF', sku: 'FAN-HPP-14BF', category: 'Kipas & Pendingin', price: 95000, stock: 20, description: 'Kipas pendingin (cooling fan) processor HP Pavilion 14-BF series.' },
-      { id: 'prod-8', name: 'Thermal Paste Grizzly Kryonaut 1g', sku: 'TP-GRZ-KRY1G', category: 'Thermal Paste', price: 115000, stock: 80, description: 'Thermal pasta premium Grizzly Kryonaut untuk penghantar panas optimal CPU laptop.' }
-    ]);
-
-    await supabase.from('orders').insert([
-      { id: 'ORD-001', branch_username: 'els.purwokerto', branch_name: 'ELS Purwokerto', date: '2026-06-30T10:15:30.000Z', required_date: '2026-07-05', urgency: 'medium', notes: 'Mohon dikirim secepatnya karena stok adaptor charger di cabang menipis.', status: 'shipped', grand_total: 5925000 },
-      { id: 'ORD-002', branch_username: 'els.bandung', branch_name: 'ELS Bandung', date: '2026-07-01T14:20:00.000Z', required_date: '2026-07-03', urgency: 'high', notes: 'Urgen sekali untuk perbaikan unit customer korporat! Tolong prioritaskan LCD dan baterai.', status: 'approved', grand_total: 2840000 }
-    ]);
-
-    await supabase.from('order_items').insert([
-      { order_id: 'ORD-001', product_id: 'prod-4', name: 'Charger Adaptor Laptop Acer 19V 3.42A', price: 150000, qty: 10 },
-      { order_id: 'ORD-001', product_id: 'prod-5', name: 'RAM DDR4 Kingston Fury 8GB 3200MHz Sodimm', price: 295000, qty: 15 },
-      { order_id: 'ORD-002', product_id: 'prod-1', name: 'LCD Screen LED 14.0 Slim 30 Pin', price: 550000, qty: 4 },
-      { order_id: 'ORD-002', product_id: 'prod-2', name: 'Baterai Laptop Asus Vivobook C21N1818', price: 320000, qty: 2 }
+      { username: 'admin', password: 'palamana', role: 'superadmin', display_name: 'ELS Pusat (Admin)', location: 'Yogyakarta (Pusat)' }
     ]);
 
     return true;
