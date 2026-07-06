@@ -103,6 +103,9 @@ export default function SuperadminDashboard({ user, onLogout }) {
   // Input Sparepart tab states
   const [inputSubTab, setInputSubTab] = useState('existing'); // 'existing' or 'new'
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [productDropdownSearch, setProductDropdownSearch] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
   const [newProductForm, setNewProductForm] = useState({
     sku: '',
     name: '',
@@ -148,6 +151,19 @@ export default function SuperadminDashboard({ user, onLogout }) {
   useEffect(() => {
     reloadData();
   }, [reloadData]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+        setProductDropdownSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Format IDR Currency
   const formatIDR = (num) => {
@@ -1147,6 +1163,14 @@ export default function SuperadminDashboard({ user, onLogout }) {
   });
 
   const categories = [...new Set(products.map(p => p.category))];
+
+  const filteredDropdownProducts = products.filter((product) => {
+    const val = productDropdownSearch.toLowerCase();
+    return (
+      product.name.toLowerCase().includes(val) ||
+      product.sku.toLowerCase().includes(val)
+    );
+  });
 
   // Get top 5 ordered products dynamically
   const getPopularProducts = () => {
@@ -2407,19 +2431,116 @@ export default function SuperadminDashboard({ user, onLogout }) {
 
                       <div className="form-group" style={{ marginBottom: '20px' }}>
                         <label className="form-label">Suku Cadang (Nama / SKU)</label>
-                        <select
-                          className="form-input"
-                          style={{ padding: '10px' }}
-                          value={selectedProductId}
-                          onChange={(e) => setSelectedProductId(e.target.value)}
-                        >
-                          <option value="">-- Pilih Suku Cadang --</option>
-                          {products.map(p => (
-                            <option key={p.id} value={p.id}>
-                              [{p.sku}] - {p.name} (Stok: {p.stock} pcs)
-                            </option>
-                          ))}
-                        </select>
+                        
+                        {/* Unified Searchable Combobox */}
+                        <div ref={dropdownRef} style={{ position: 'relative', width: '100%' }}>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="text"
+                              className="form-input"
+                              style={{ 
+                                padding: '10px 36px 10px 12px', 
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                width: '100%',
+                                boxSizing: 'border-box'
+                              }}
+                              placeholder="-- Pilih Suku Cadang --"
+                              value={
+                                isDropdownOpen 
+                                  ? productDropdownSearch 
+                                  : (selectedProductId 
+                                      ? (() => {
+                                          const sel = products.find(p => p.id === selectedProductId);
+                                          return sel ? `[${sel.sku}] - ${sel.name} (Stok: ${sel.stock} pcs)` : '';
+                                        })() 
+                                      : '')
+                              }
+                              onFocus={() => {
+                                setIsDropdownOpen(true);
+                                setProductDropdownSearch('');
+                              }}
+                              onChange={(e) => {
+                                setProductDropdownSearch(e.target.value);
+                                setIsDropdownOpen(true);
+                              }}
+                            />
+                            {/* Dropdown Arrow Icon */}
+                            <div 
+                              style={{ 
+                                position: 'absolute', 
+                                right: '12px', 
+                                top: '50%', 
+                                transform: 'translateY(-50%)', 
+                                pointerEvents: 'none',
+                                color: 'var(--text-muted)',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            </div>
+                          </div>
+
+                          {/* Dropdown List Overlay */}
+                          {isDropdownOpen && (
+                            <div 
+                              style={{ 
+                                position: 'absolute', 
+                                top: '100%', 
+                                left: 0, 
+                                right: 0, 
+                                marginTop: '4px',
+                                maxHeight: '220px', 
+                                overflowY: 'auto', 
+                                backgroundColor: 'var(--bg-input)', 
+                                border: '1px solid var(--border-color)', 
+                                borderRadius: '6px', 
+                                boxShadow: 'var(--shadow-lg)',
+                                zIndex: 9999
+                              }}
+                            >
+                              {filteredDropdownProducts.length > 0 ? (
+                                filteredDropdownProducts.map((p) => (
+                                  <div 
+                                    key={p.id}
+                                    className="btn-tactile"
+                                    style={{ 
+                                      padding: '10px 12px', 
+                                      fontSize: '13px', 
+                                      cursor: 'pointer', 
+                                      borderBottom: '1px solid rgba(120, 113, 108, 0.1)',
+                                      color: 'var(--text-main)',
+                                      backgroundColor: selectedProductId === p.id ? 'rgba(217, 119, 6, 0.15)' : 'transparent',
+                                      transition: 'background-color 0.15s ease'
+                                    }}
+                                    onClick={() => {
+                                      setSelectedProductId(p.id);
+                                      setProductDropdownSearch('');
+                                      setIsDropdownOpen(false);
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = 'rgba(120, 113, 108, 0.12)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = selectedProductId === p.id ? 'rgba(217, 119, 6, 0.15)' : 'transparent';
+                                    }}
+                                  >
+                                    <span style={{ fontWeight: '600', color: 'var(--accent)' }}>[{p.sku}]</span>{' '}
+                                    <span style={{ color: 'var(--text-main)' }}>{p.name}</span>{' '}
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>(Stok: {p.stock} pcs)</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div style={{ padding: '12px', fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                                  Tidak ada suku cadang ditemukan
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {selectedProductId && (() => {
