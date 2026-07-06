@@ -371,9 +371,6 @@ export const db = {
         if (!dbProd) {
           throw new Error(`Produk "${item.name}" tidak ditemukan di katalog pusat!`);
         }
-        if (dbProd.stock < item.qty) {
-          throw new Error(`Stok "${dbProd.name}" tidak mencukupi! Tersedia: ${dbProd.stock}, diminta: ${item.qty}`);
-        }
       });
     }
 
